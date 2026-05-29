@@ -29,6 +29,12 @@ collect-greenhouse:
 collect-hellowork:
 	python -m src.ingestion.hellowork_collector
 
+dbt-run:
+	cd dbt/market_intelligence && dbt run
+
+dbt-test:
+	cd dbt/market_intelligence && dbt test
+
 test:
 	python -m pytest tests/ -v
 
