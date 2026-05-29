@@ -53,7 +53,7 @@ class PipelineRun:
 
 def _get_connection():
     return psycopg2.connect(
-        host="localhost",
+        host=settings.postgres_host,
         port=settings.postgres_port,
         dbname=settings.postgres_db,
         user=settings.postgres_user,

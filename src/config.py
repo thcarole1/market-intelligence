@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     )
 
     # PostgreSQL
+    postgres_host: str = "localhost"
     postgres_user: str
     postgres_password: str
     postgres_db: str

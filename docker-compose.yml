@@ -35,6 +35,37 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  dashboard:
+    build: .
+    container_name: market_dashboard
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    command: streamlit run src/dashboard/app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  pipeline:
+    build: .
+    container_name: market_pipeline
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    command: python scripts/scheduler.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ~/.dbt:/root/.dbt
+
 volumes:
   postgres_data:
   pgadmin_data:
