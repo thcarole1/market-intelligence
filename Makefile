@@ -35,6 +35,9 @@ dbt-run:
 dbt-test:
 	cd dbt/market_intelligence && dbt test
 
+dashboard:
+	streamlit run src/dashboard/app.py
+
 test:
 	python -m pytest tests/ -v
 
