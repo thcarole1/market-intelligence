@@ -72,7 +72,7 @@ def extract_and_store_skills(batch_size: int = 100) -> int:
     logger.info("[skills_extractor] Démarrage extraction NLP...")
 
     conn = psycopg2.connect(
-        host="localhost",
+        host=settings.postgres_host,
         port=settings.postgres_port,
         dbname=settings.postgres_db,
         user=settings.postgres_user,

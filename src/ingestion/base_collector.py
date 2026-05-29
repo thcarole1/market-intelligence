@@ -22,7 +22,7 @@ class BaseCollector(ABC):
     def _connect_db(self) -> psycopg2.extensions.connection:
         """Connexion à PostgreSQL via pydantic-settings."""
         return psycopg2.connect(
-            host="localhost",
+            host=settings.postgres_host,
             port=settings.postgres_port,
             dbname=settings.postgres_db,
             user=settings.postgres_user,
