@@ -13,6 +13,7 @@ install:
 
 init-db:
 	python -m scripts.init_db
+	cd dbt/market_intelligence && dbt seed
 
 collect-ft:
 	python -m src.ingestion.france_travail_collector
@@ -55,3 +56,7 @@ scheduler:
 
 monitoring:
 	python -m src.monitoring
+
+
+dbt-seed:
+	cd dbt/market_intelligence && dbt seed
