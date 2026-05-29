@@ -115,6 +115,29 @@ unioned AS (
     SELECT * FROM wwr
     UNION ALL
     SELECT * FROM greenhouse
+),
+
+ranked AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY
+                LOWER(TRIM(COALESCE(titre, ''))),
+                LOWER(TRIM(COALESCE(entreprise, ''))),
+                LOWER(TRIM(COALESCE(localisation, '')))
+            ORDER BY
+                CASE source
+                    WHEN 'france_travail' THEN 1
+                    WHEN 'hellowork'      THEN 2
+                    WHEN 'greenhouse'     THEN 3
+                    WHEN 'remotive'       THEN 4
+                    WHEN 'wwr'            THEN 5
+                    ELSE 6
+                END
+        ) AS row_num
+    FROM unioned
+    WHERE titre IS NOT NULL
+      AND titre != ''
 )
 
 SELECT
@@ -129,7 +152,10 @@ SELECT
     date_publication,
     url,
     raw_id,
-    NOW()                                               AS created_at
-FROM unioned
-WHERE titre IS NOT NULL
-  AND titre != ''
+    NOW()                                               AS created_at,
+    -- Clé de déduplication pour audit
+    LOWER(TRIM(COALESCE(titre, ''))) || '|' ||
+    LOWER(TRIM(COALESCE(entreprise, ''))) || '|' ||
+    LOWER(TRIM(COALESCE(localisation, '')))             AS dedup_key
+FROM ranked
+WHERE row_num = 1
