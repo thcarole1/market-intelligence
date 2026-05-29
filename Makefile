@@ -41,11 +41,14 @@ extract-skills:
 dashboard:
 	streamlit run src/dashboard/app.py
 
-extract-skills:
-	python -m src.ingestion.skills_extractor
-
 test:
 	python -m pytest tests/ -v
 
 lint:
 	python -m flake8 src/ scripts/ tests/
+
+pipeline:
+	python scripts/scheduler.py --now
+
+scheduler:
+	python scripts/scheduler.py
