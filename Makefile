@@ -17,6 +17,18 @@ init-db:
 collect-ft:
 	python -m src.ingestion.france_travail_collector
 
+collect-remotive:
+	python -m src.ingestion.remotive_collector
+
+collect-wwr:
+	python -m src.ingestion.wwr_collector
+
+collect-greenhouse:
+	python -m src.ingestion.greenhouse_collector
+
+collect-hellowork:
+	python -m src.ingestion.hellowork_collector
+
 test:
 	python -m pytest tests/ -v
 
