@@ -1,0 +1,135 @@
+-- Modèle Silver : normalisation des offres brutes
+-- Unifie les 5 sources en un schéma commun
+-- Matérialisé en TABLE (données copiées et indexées)
+
+{{ config(materialized='table') }}
+
+WITH france_travail AS (
+    SELECT
+        id                                              AS raw_id,
+        'france_travail'                                AS source,
+        raw_data->>'id'                                 AS source_id,
+        raw_data->>'intitule'                           AS titre,
+        raw_data->'entreprise'->>'nom'                  AS entreprise,
+        raw_data->'lieuTravail'->>'libelle'             AS localisation,
+        raw_data->>'typeContrat'                        AS type_contrat,
+        raw_data->>'description'                        AS description,
+        (raw_data->>'dateCreation')::date               AS date_publication,
+        raw_data->>'origineOffre'                       AS url
+    FROM {{ source('public', 'raw_jobs') }}
+    WHERE source = 'france_travail'
+),
+
+hellowork AS (
+    SELECT
+        id                                              AS raw_id,
+        'hellowork'                                     AS source,
+        raw_data->>'offer_id'                           AS source_id,
+        -- Extraction titre depuis aria_label si title vide
+        CASE
+            WHEN raw_data->>'title' != '' THEN raw_data->>'title'
+            WHEN raw_data->>'aria_label' LIKE 'Voir offre de%'
+            THEN TRIM(
+                SPLIT_PART(
+                    SPLIT_PART(raw_data->>'aria_label', 'Voir offre de ', 2),
+                    ' à ', 1
+                )
+            )
+            ELSE NULL
+        END                                             AS titre,
+        -- Extraction entreprise depuis aria_label
+        CASE
+            WHEN raw_data->>'aria_label' LIKE '%chez %'
+            THEN TRIM(
+                SPLIT_PART(
+                    SPLIT_PART(raw_data->>'aria_label', 'chez ', 2),
+                    ',', 1
+                )
+            )
+            ELSE NULL
+        END                                             AS entreprise,
+        raw_data->>'location'                           AS localisation,
+        raw_data->>'contract'                           AS type_contrat,
+        raw_data->>'aria_label'                         AS description,
+        NULL::date                                      AS date_publication,
+        raw_data->>'url'                                AS url
+    FROM {{ source('public', 'raw_jobs') }}
+    WHERE source = 'hellowork'
+),
+
+remotive AS (
+    SELECT
+        id                                              AS raw_id,
+        'remotive'                                      AS source,
+        (raw_data->>'id')::text                         AS source_id,
+        raw_data->>'title'                              AS titre,
+        raw_data->>'company_name'                       AS entreprise,
+        raw_data->>'candidate_required_location'        AS localisation,
+        raw_data->>'job_type'                           AS type_contrat,
+        raw_data->>'description'                        AS description,
+        (raw_data->>'publication_date')::date           AS date_publication,
+        raw_data->>'url'                                AS url
+    FROM {{ source('public', 'raw_jobs') }}
+    WHERE source = 'remotive'
+),
+
+wwr AS (
+    SELECT
+        id                                              AS raw_id,
+        'wwr'                                           AS source,
+        raw_data->>'link'                               AS source_id,
+        raw_data->>'title'                              AS titre,
+        raw_data->>'company'                            AS entreprise,
+        'Remote'                                        AS localisation,
+        'Remote'                                        AS type_contrat,
+        raw_data->>'summary'                            AS description,
+        (raw_data->>'published')::date                  AS date_publication,
+        raw_data->>'link'                               AS url
+    FROM {{ source('public', 'raw_jobs') }}
+    WHERE source = 'wwr'
+),
+
+greenhouse AS (
+    SELECT
+        id                                              AS raw_id,
+        'greenhouse'                                    AS source,
+        (raw_data->>'id')::text                         AS source_id,
+        raw_data->>'title'                              AS titre,
+        raw_data->>'board_token'                        AS entreprise,
+        raw_data->'location'->>'name'                   AS localisation,
+        NULL                                            AS type_contrat,
+        raw_data->>'content'                            AS description,
+        (raw_data->>'updated_at')::date                 AS date_publication,
+        raw_data->>'absolute_url'                       AS url
+    FROM {{ source('public', 'raw_jobs') }}
+    WHERE source = 'greenhouse'
+),
+
+unioned AS (
+    SELECT * FROM france_travail
+    UNION ALL
+    SELECT * FROM hellowork
+    UNION ALL
+    SELECT * FROM remotive
+    UNION ALL
+    SELECT * FROM wwr
+    UNION ALL
+    SELECT * FROM greenhouse
+)
+
+SELECT
+    gen_random_uuid()                                   AS id,
+    source,
+    source_id,
+    TRIM(titre)                                         AS titre,
+    TRIM(entreprise)                                    AS entreprise,
+    TRIM(localisation)                                  AS localisation,
+    UPPER(TRIM(type_contrat))                           AS type_contrat,
+    description,
+    date_publication,
+    url,
+    raw_id,
+    NOW()                                               AS created_at
+FROM unioned
+WHERE titre IS NOT NULL
+  AND titre != ''

@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: public
+    database: market_intelligence
+    schema: public
+    tables:
+      - name: raw_jobs
+        description: "Offres d'emploi brutes collectées depuis toutes les sources"
+        columns:
+          - name: id
+            description: "Identifiant auto-incrémenté"
+          - name: source
+            description: "Source de l'offre (france_travail, hellowork, etc.)"
+          - name: raw_data
+            description: "JSON brut de l'offre"
+          - name: collected_at
+            description: "Date de collecte"
+          - name: hash
+            description: "Empreinte SHA-256 pour déduplication"

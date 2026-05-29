@@ -43,6 +43,7 @@ class HelloworkCollector(BaseCollector):
             return None
 
         response.raise_for_status()
+        response.encoding = 'utf-8'          # ← correction encodage
         return BeautifulSoup(response.text, "lxml")
 
     def _parse_jobs(self, soup: BeautifulSoup, keyword: str) -> list[dict]:
@@ -60,11 +61,24 @@ class HelloworkCollector(BaseCollector):
                 if not link_tag:
                     continue
 
-                # Titre et entreprise depuis le h3 dans le lien
-                h3 = link_tag.find("h3")
-                paragraphs = h3.find_all("p") if h3 else []
-                title   = paragraphs[0].text.strip() if len(paragraphs) > 0 else ""
-                company = paragraphs[1].text.strip() if len(paragraphs) > 1 else ""
+                # Extrait titre et entreprise depuis aria-label
+                # Format : "Voir offre de {titre} à {lieu}, chez {entreprise}, ..."
+                aria_label = link_tag.get("aria-label", "")
+                title_tag = link_tag.find("h3")
+                paragraphs = title_tag.find_all("p") if title_tag else []
+
+                # Titre depuis le premier <p> du <h3>
+                title = paragraphs[0].text.strip() if paragraphs else ""
+
+                # Entreprise depuis le deuxième <p> ou depuis aria-label
+                if len(paragraphs) > 1:
+                    company = paragraphs[1].text.strip()
+                elif "chez " in aria_label:
+                    # Fallback : extraction depuis aria-label
+                    after_chez = aria_label.split("chez ")[-1]
+                    company = after_chez.split(",")[0].strip()
+                else:
+                    company = ""
 
                 jobs.append({
                     "offer_id":   offer_id,
@@ -73,7 +87,7 @@ class HelloworkCollector(BaseCollector):
                     "location":   location_tag.text.strip() if location_tag else "",
                     "contract":   contract_tag.text.strip() if contract_tag else "",
                     "url":        f"{self.BASE_URL}{link_tag['href']}",
-                    "aria_label": link_tag.get("aria-label", ""),
+                    "aria_label": aria_label,
                     "keyword":    keyword,
                     "source":     "hellowork"
                 })
