@@ -18,3 +18,13 @@ sources:
             description: "Date de collecte"
           - name: hash
             description: "Empreinte SHA-256 pour déduplication"
+
+      - name: job_skills
+        description: "Skills extraits par NLP depuis les offres brutes"
+        columns:
+            - name: raw_job_id
+              description: "FK vers raw_jobs"
+            - name: skill
+              description: "Skill normalisé"
+            - name: skill_type
+              description: "hard ou soft"
