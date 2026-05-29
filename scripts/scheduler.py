@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
+from src.monitoring import PipelineRun, SourceMetric, save_pipeline_run, print_monitoring_report
 
 # Racine du projet
 ROOT = Path(__file__).resolve().parent.parent
@@ -78,30 +79,36 @@ def run_skills_extraction() -> bool:
 
 
 def run_pipeline() -> None:
-    """
-    Pipeline complet :
-    1. Collecteurs (toutes sources)
-    2. dbt run (Silver + Gold)
-    3. Extraction NLP skills
-    """
+    """Pipeline complet avec monitoring intégré."""
+    run = PipelineRun()
+
     logger.info("=" * 60)
     logger.info("[scheduler] DÉMARRAGE PIPELINE COMPLET")
     logger.info("=" * 60)
 
     if not run_collectors():
+        run.add_error("Échec collecteurs")
+        save_pipeline_run(run)
         logger.error("[scheduler] Pipeline arrêté — échec collecteurs")
         return
 
     if not run_dbt():
+        run.add_error("Échec dbt run")
+        save_pipeline_run(run)
         logger.error("[scheduler] Pipeline arrêté — échec dbt")
         return
 
     if not run_skills_extraction():
+        run.add_error("Échec extraction NLP")
+        save_pipeline_run(run)
         logger.error("[scheduler] Pipeline arrêté — échec NLP")
         return
 
+    save_pipeline_run(run)
+    print_monitoring_report()
+
     logger.info("=" * 60)
-    logger.info("[scheduler] PIPELINE TERMINÉ ✅")
+    logger.info(f"[scheduler] PIPELINE TERMINÉ ✅ ({run.duration_seconds}s)")
     logger.info("=" * 60)
 
 
