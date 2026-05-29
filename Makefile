@@ -52,3 +52,6 @@ pipeline:
 
 scheduler:
 	python scripts/scheduler.py
+
+monitoring:
+	python -m src.monitoring

@@ -47,6 +47,28 @@ CREATE INDEX IF NOT EXISTS idx_job_skills_skill
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_job_skills_unique
     ON job_skills(raw_job_id, skill);
+
+-- Table de monitoring du pipeline
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id              SERIAL PRIMARY KEY,
+    run_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    status          TEXT NOT NULL CHECK (status IN ('success', 'failure', 'partial')),
+    duration_seconds FLOAT,
+    details         JSONB
+);
+
+-- Table de métriques par source
+CREATE TABLE IF NOT EXISTS source_metrics (
+    id              SERIAL PRIMARY KEY,
+    run_id          INTEGER REFERENCES pipeline_runs(id),
+    source          TEXT NOT NULL,
+    nb_collected    INTEGER DEFAULT 0,
+    nb_inserted     INTEGER DEFAULT 0,
+    nb_duplicates   INTEGER DEFAULT 0,
+    status          TEXT NOT NULL CHECK (status IN ('success', 'failure', 'skipped')),
+    error_message   TEXT,
+    measured_at     TIMESTAMP NOT NULL DEFAULT NOW()
+);
 """
 
 
