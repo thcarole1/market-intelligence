@@ -20,7 +20,10 @@ def query(sql: str, params: dict = None) -> pd.DataFrame:
     """Exécute une requête et retourne un DataFrame."""
     try:
         with get_engine().connect() as conn:
-            return pd.read_sql_query(sql, conn, params=params)
+            if params:
+                from sqlalchemy import text
+                return pd.read_sql_query(text(sql), conn, params=params)
+            return pd.read_sql_query(sql, conn)
     except Exception as e:
         logger.error(f"Erreur requête : {e}")
         return pd.DataFrame()
@@ -53,9 +56,8 @@ def get_top_skills(sources: list[str] = None, limit: int = 30) -> pd.DataFrame:
 
 
 def get_skills_by_source() -> pd.DataFrame:
-    """Skills par source pour comparaison."""
     sql = """
-        SELECT source, skill, nb_offres, pct_offres
+        SELECT source, skill, skill_type, nb_offres, pct_offres
         FROM public_gold.skills_freq
         ORDER BY source, nb_offres DESC
     """
@@ -87,7 +89,6 @@ def get_top_cooccurrences(sources: list[str] = None, limit: int = 30) -> pd.Data
 
 
 def get_overview_stats() -> dict:
-    """Statistiques générales pour la page d'accueil."""
     sql = """
         SELECT
             COUNT(*)                            AS total_offres,
@@ -102,7 +103,6 @@ def get_overview_stats() -> dict:
 
 
 def get_offres_by_source() -> pd.DataFrame:
-    """Répartition des offres par source."""
     sql = """
         SELECT source, COUNT(*) as nb_offres
         FROM public_silver.jobs
@@ -113,7 +113,6 @@ def get_offres_by_source() -> pd.DataFrame:
 
 
 def get_top_locations(limit: int = 15) -> pd.DataFrame:
-    """Villes les plus demandeuses."""
     sql = """
         SELECT localisation, COUNT(*) as nb_offres
         FROM public_silver.jobs
@@ -121,13 +120,12 @@ def get_top_locations(limit: int = 15) -> pd.DataFrame:
           AND localisation != ''
         GROUP BY localisation
         ORDER BY nb_offres DESC
-        LIMIT %s
+        LIMIT :limit
     """
-    return query(sql, (limit,))
+    return query(sql, {"limit": limit})
 
 
 def get_contracts_distribution() -> pd.DataFrame:
-    """Répartition des types de contrats."""
     sql = """
         SELECT type_contrat, COUNT(*) as nb_offres
         FROM public_silver.jobs
@@ -137,3 +135,188 @@ def get_contracts_distribution() -> pd.DataFrame:
         ORDER BY nb_offres DESC
     """
     return query(sql)
+
+
+def get_regions() -> list[str]:
+    """Liste des régions disponibles."""
+    sql = """
+        SELECT DISTINCT region_nom
+        FROM public_silver.jobs
+        WHERE region_nom IS NOT NULL
+        ORDER BY region_nom
+    """
+    df = query(sql)
+    return df["region_nom"].tolist() if not df.empty else []
+
+
+def get_departements(region: str = None) -> pd.DataFrame:
+    """Liste des départements, filtrés par région si fournie."""
+    if region:
+        sql = """
+            SELECT DISTINCT dept_code, dept_nom
+            FROM public_silver.jobs
+            WHERE region_nom = :region
+              AND dept_code IS NOT NULL
+            ORDER BY dept_code
+        """
+        df = query(sql, {"region": region})
+    else:
+        sql = """
+            SELECT DISTINCT dept_code, dept_nom
+            FROM public_silver.jobs
+            WHERE dept_code IS NOT NULL
+            ORDER BY dept_code
+        """
+        df = query(sql)
+    return df
+
+
+def get_top_skills_geo(
+    sources: list[str] = None,
+    regions: list[str] = None,
+    dept_codes: list[str] = None,
+    include_remote: bool = True,
+    limit: int = 30
+) -> pd.DataFrame:
+    """Top skills avec filtres géographiques."""
+    conditions = ["1=1"]
+    params = {}
+
+    if sources:
+        conditions.append("source = ANY(:sources)")
+        params["sources"] = sources
+
+    if regions:
+        conditions.append("region_nom = ANY(:regions)")
+        params["regions"] = regions
+
+    if dept_codes:
+        conditions.append("dept_code = ANY(:dept_codes)")
+        params["dept_codes"] = dept_codes
+
+    if not include_remote:
+        conditions.append("is_remote = FALSE")
+
+    where = " AND ".join(conditions)
+
+    sql = f"""
+        SELECT skill, skill_type, SUM(nb_offres) as total
+        FROM public_gold.skills_freq
+        WHERE {where}
+        GROUP BY skill, skill_type
+        ORDER BY total DESC
+        LIMIT :limit
+    """
+    params["limit"] = limit
+    return query(sql, params)
+
+
+def get_top_cooccurrences_geo(
+    sources: list[str] = None,
+    regions: list[str] = None,
+    dept_codes: list[str] = None,
+    include_remote: bool = True,
+    limit: int = 50
+) -> pd.DataFrame:
+    """Co-occurrences avec filtres géographiques."""
+    conditions = ["1=1"]
+    params = {}
+
+    if sources:
+        conditions.append("source = ANY(:sources)")
+        params["sources"] = sources
+
+    if regions:
+        conditions.append("region_nom = ANY(:regions)")
+        params["regions"] = regions
+
+    if dept_codes:
+        conditions.append("dept_code = ANY(:dept_codes)")
+        params["dept_codes"] = dept_codes
+
+    if not include_remote:
+        conditions.append("is_remote = FALSE")
+
+    where = " AND ".join(conditions)
+
+    sql = f"""
+        SELECT skill_a, skill_b, SUM(nb_offres) as total
+        FROM public_gold.co_occurrences
+        WHERE {where}
+        GROUP BY skill_a, skill_b
+        ORDER BY total DESC
+        LIMIT :limit
+    """
+    params["limit"] = limit
+    return query(sql, params)
+
+def get_top_hard_skills(
+    sources: list[str] = None,
+    regions: list[str] = None,
+    dept_codes: list[str] = None,
+    include_remote: bool = True,
+    limit: int = 30
+) -> pd.DataFrame:
+    """Top hard skills uniquement."""
+    conditions = ["skill_type = 'hard'"]
+    params = {}
+
+    if sources:
+        conditions.append("source = ANY(:sources)")
+        params["sources"] = sources
+    if regions:
+        conditions.append("region_nom = ANY(:regions)")
+        params["regions"] = regions
+    if dept_codes:
+        conditions.append("dept_code = ANY(:dept_codes)")
+        params["dept_codes"] = dept_codes
+    if not include_remote:
+        conditions.append("is_remote = FALSE")
+
+    where = " AND ".join(conditions)
+    sql = f"""
+        SELECT skill, SUM(nb_offres) as total
+        FROM public_gold.skills_freq
+        WHERE {where}
+        GROUP BY skill
+        ORDER BY total DESC
+        LIMIT :limit
+    """
+    params["limit"] = limit
+    return query(sql, params)
+
+
+def get_top_soft_skills(
+    sources: list[str] = None,
+    regions: list[str] = None,
+    dept_codes: list[str] = None,
+    include_remote: bool = True,
+    limit: int = 20
+) -> pd.DataFrame:
+    """Top soft skills uniquement."""
+    conditions = ["skill_type = 'soft'"]
+    params = {}
+
+    if sources:
+        conditions.append("source = ANY(:sources)")
+        params["sources"] = sources
+    if regions:
+        conditions.append("region_nom = ANY(:regions)")
+        params["regions"] = regions
+    if dept_codes:
+        conditions.append("dept_code = ANY(:dept_codes)")
+        params["dept_codes"] = dept_codes
+    if not include_remote:
+        conditions.append("is_remote = FALSE")
+
+    where = " AND ".join(conditions)
+    sql = f"""
+        SELECT skill, SUM(nb_offres) as total
+        FROM public_gold.skills_freq
+        WHERE {where}
+        GROUP BY skill
+        ORDER BY total DESC
+        LIMIT :limit
+    """
+    params["limit"] = limit
+    return query(sql, params)

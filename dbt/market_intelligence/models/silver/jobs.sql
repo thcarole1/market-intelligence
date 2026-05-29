@@ -156,6 +156,43 @@ SELECT
     -- Clé de déduplication pour audit
     LOWER(TRIM(COALESCE(titre, ''))) || '|' ||
     LOWER(TRIM(COALESCE(entreprise, ''))) || '|' ||
-    LOWER(TRIM(COALESCE(localisation, '')))             AS dedup_key
-FROM ranked
+    LOWER(TRIM(COALESCE(localisation, '')))             AS dedup_key,
+
+    -- ── Géolocalisation ───────────────────────────────────────────────────────
+
+    -- Détection Remote
+    CASE
+        WHEN LOWER(TRIM(COALESCE(localisation, ''))) IN ('remote', 'international', 'worldwide', '')
+          OR LOWER(TRIM(COALESCE(localisation, ''))) LIKE '%remote%'
+          OR LOWER(TRIM(COALESCE(localisation, ''))) LIKE '%télétravail%'
+        THEN TRUE
+        ELSE FALSE
+    END                                                 AS is_remote,
+
+    -- Extraction code département
+    -- Format France Travail : "75 - Paris" ou "75 - Paris 12e"
+    -- Format HelloWork : "Paris - 75" ou "Cesson-Sévigné - 35"
+    CASE
+        -- Format "XX - Ville" (France Travail)
+        WHEN TRIM(localisation) ~ '^[0-9]{2,3}\s*-'
+        THEN REGEXP_REPLACE(TRIM(localisation), '^([0-9]{2,3})\s*-.*', '\1')
+        -- Format "Ville - XX" (HelloWork)
+        WHEN TRIM(localisation) ~ '-\s*[0-9]{2,3}$'
+        THEN REGEXP_REPLACE(TRIM(localisation), '.*-\s*([0-9]{2,3})$', '\1')
+        ELSE NULL
+    END                                                 AS dept_code,
+
+    -- Jointure avec le seed pour enrichir département et région
+    d.dept_nom,
+    d.region_nom
+
+FROM ranked r
+LEFT JOIN {{ ref('departements') }} d
+    ON d.dept_code = CASE
+        WHEN TRIM(r.localisation) ~ '^[0-9]{2,3}\s*-'
+        THEN REGEXP_REPLACE(TRIM(r.localisation), '^([0-9]{2,3})\s*-.*', '\1')
+        WHEN TRIM(r.localisation) ~ '-\s*[0-9]{2,3}$'
+        THEN REGEXP_REPLACE(TRIM(r.localisation), '.*-\s*([0-9]{2,3})$', '\1')
+        ELSE NULL
+    END
 WHERE row_num = 1

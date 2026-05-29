@@ -2,16 +2,22 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from src.dashboard.db import get_top_cooccurrences
-
+from src.dashboard.db import get_top_cooccurrences_geo
 
 def render():
-    st.title("🔗 Co-occurrences de Skills")
-    st.caption("Quels skills apparaissent ensemble dans les mêmes offres ?")
+    # ... début inchangé ...
+    sources    = st.session_state.get("selected_sources", [])
+    regions    = st.session_state.get("selected_regions", [])
+    dept_codes = st.session_state.get("selected_dept_codes", [])
+    incl_remote = st.session_state.get("include_remote", True)
 
-    sources = st.session_state.get("selected_sources", [])
-
-    df = get_top_cooccurrences(sources=sources, limit=50)
+    df = get_top_cooccurrences_geo(
+        sources=sources or None,
+        regions=regions or None,
+        dept_codes=dept_codes or None,
+        include_remote=incl_remote,
+        limit=50
+    )
 
     if df.empty:
         st.warning("Aucune donnée disponible.")
@@ -115,7 +121,7 @@ def render():
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         plot_bgcolor="white"
     )
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, width='stretch')
 
     # ── Tableau brut ───────────────────────────────────────────────────────────
     with st.expander("Voir les données brutes"):

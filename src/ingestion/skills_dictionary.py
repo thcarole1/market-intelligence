@@ -56,7 +56,11 @@ HARD_SKILLS = {
     "matplotlib":       ["matplotlib", "seaborn", "plotly"],
 
     # ML
-    "machine learning": ["machine learning", "ml", "deep learning", "ia", "llm"],
+    "mlflow":           ["mlflow"],
+    "scikit-learn":     ["scikit-learn", "sklearn"],
+    "tensorflow":       ["tensorflow", "keras"],
+    "pytorch":          ["pytorch"],
+    "llm":              ["llm", "large language model", "langchain", "rag"],
     "pandas":           ["pandas"],
     "scikit-learn":     ["scikit-learn", "sklearn"],
     "tensorflow":       ["tensorflow", "keras"],
