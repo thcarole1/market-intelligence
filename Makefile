@@ -35,8 +35,14 @@ dbt-run:
 dbt-test:
 	cd dbt/market_intelligence && dbt test
 
+extract-skills:
+	python -m src.ingestion.skills_extractor
+
 dashboard:
 	streamlit run src/dashboard/app.py
+
+extract-skills:
+	python -m src.ingestion.skills_extractor
 
 test:
 	python -m pytest tests/ -v

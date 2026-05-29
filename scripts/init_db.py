@@ -29,6 +29,24 @@ CREATE INDEX IF NOT EXISTS idx_raw_jobs_collected_at
 
 CREATE INDEX IF NOT EXISTS idx_raw_jobs_raw_data
     ON raw_jobs USING GIN(raw_data);
+
+-- Table des skills extraits par NLP
+CREATE TABLE IF NOT EXISTS job_skills (
+    id              SERIAL PRIMARY KEY,
+    raw_job_id      INTEGER NOT NULL REFERENCES raw_jobs(id) ON DELETE CASCADE,
+    skill           TEXT NOT NULL,
+    skill_type      TEXT NOT NULL CHECK (skill_type IN ('hard', 'soft')),
+    extracted_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_skills_raw_job_id
+    ON job_skills(raw_job_id);
+
+CREATE INDEX IF NOT EXISTS idx_job_skills_skill
+    ON job_skills(skill);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_skills_unique
+    ON job_skills(raw_job_id, skill);
 """
 
 
