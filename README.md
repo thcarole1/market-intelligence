@@ -251,7 +251,9 @@ Metrics → job_skills      (skills extraits par NLP par offre)
 
 ### Déduplication
 
-Chaque offre brute est hashée (SHA-256) avant insertion. Les doublons sont rejetés automatiquement via `ON CONFLICT (hash) DO NOTHING`.
+**Déduplication intra-source** : chaque offre brute est hashée (SHA-256) avant insertion. Les doublons sont rejetés automatiquement via `ON CONFLICT (hash) DO NOTHING`.
+
+**Déduplication inter-sources** : une même offre publiée sur plusieurs plateformes est détectée en couche Silver via une clé de déduplication normalisée `(titre, entreprise, localisation)`. La source prioritaire est conservée selon l'ordre : France Travail → HelloWork → Greenhouse → Remotive → WWR. Sur 2 155 offres collectées, 360 doublons inter-sources ont été éliminés (~17%).
 
 ---
 
