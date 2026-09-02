@@ -57,6 +57,5 @@ scheduler:
 monitoring:
 	python -m src.monitoring
 
-
 dbt-seed:
 	cd dbt/market_intelligence && dbt seed

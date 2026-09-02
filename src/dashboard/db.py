@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 def get_engine():
     """Moteur SQLAlchemy — compatible pandas."""
     url = (
-        f"postgresql+psycopg2://{settings.postgres_user}:"
-        f"{settings.postgres_password}@localhost:"
+        f"postgresql://{settings.postgres_user}:"
+        f"{settings.postgres_password}@{settings.postgres_host}:"
         f"{settings.postgres_port}/{settings.postgres_db}"
     )
     return create_engine(url)
